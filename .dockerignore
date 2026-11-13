@@ -1,0 +1,9 @@
+.git
+.github
+.terraform
+*.tfstate
+*.tfstate.*
+.env
+*.pem
+*.key
+README.md
