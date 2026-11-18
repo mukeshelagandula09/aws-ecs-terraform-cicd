@@ -1,9 +1,15 @@
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
 *.tfvars
-!.example.tfvars
-.env
-*.pem
-*.key
-.DS_Store
+*.tfvars.json
+crash.log
+crash.*.log
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
