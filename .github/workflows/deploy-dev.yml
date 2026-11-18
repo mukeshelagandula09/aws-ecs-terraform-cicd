@@ -45,27 +45,37 @@ jobs:
           echo "Event: $GITHUB_EVENT_NAME"
           echo "Role ARN: $ROLE_TO_ASSUME"
 
-            - name: Inspect OIDC token claims
+      - name: Inspect OIDC token claims
         shell: bash
         run: |
-          TOKEN=$(curl -sS \
+          set -euo pipefail
+
+          RESPONSE=$(curl -fsS \
             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-            | jq -r '.value')
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$RESPONSE" | jq -er '.value')
 
           export TOKEN
 
           python3 - <<'PY'
-          import os, json, base64
+          import os
+          import json
+          import base64
 
           token = os.environ["TOKEN"]
           payload = token.split(".")[1]
           payload += "=" * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          claims = json.loads(
+              base64.urlsafe_b64decode(payload)
+          )
 
           for key in ["iss", "aud", "sub"]:
               print(f"{key}: {claims.get(key)}")
           PY
+
+          unset TOKEN RESPONSE
 
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -133,11 +143,13 @@ jobs:
           echo "task_definition_arn=$TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to ECS
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.register-task.outputs.task_definition_arn }}
         run: |
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_SERVICE" \
-            --task-definition "${{ steps.register-task.outputs.task_definition_arn }}" \
+            --task-definition "$TASK_DEFINITION_ARN" \
             --desired-count 1
 
       - name: Wait for ECS deployment
